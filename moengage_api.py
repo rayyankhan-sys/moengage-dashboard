@@ -22,6 +22,7 @@ from config import (
     WORKSPACE_ID,
     DATA_API_KEY,
     CAMPAIGN_API_KEY,
+    APP_KEY_ID,
     SEGMENTATION_API_ENDPOINT,
     CAMPAIGN_META_API_ENDPOINT,
     CAMPAIGN_STATS_API_ENDPOINT,
@@ -113,6 +114,7 @@ class MoEngageAPIClient:
         self.workspace_id = WORKSPACE_ID
         self.data_api_key = DATA_API_KEY
         self.campaign_api_key = CAMPAIGN_API_KEY
+        self.app_key_id = APP_KEY_ID
 
         # Configure session with connection pooling
         self.session = requests.Session()
@@ -229,6 +231,7 @@ class MoEngageAPIClient:
 
         headers = {
             "Authorization": auth_header,
+            "MOE-APPKEY": self.app_key_id,
             "Content-Type": "application/json",
         }
 

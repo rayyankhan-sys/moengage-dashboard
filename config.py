@@ -12,6 +12,7 @@ API_BASE = os.getenv("MOENGAGE_API_BASE", "https://api-01.moengage.com")
 WORKSPACE_ID = os.getenv("MOENGAGE_WORKSPACE_ID", "95PNUHBSYSLLJZ22PEOFMKF2")
 DATA_API_KEY = os.getenv("MOENGAGE_DATA_API_KEY", "Mj5JSGKcwYum9NKAGmGHJG_E")
 CAMPAIGN_API_KEY = os.getenv("MOENGAGE_CAMPAIGN_API_KEY", "3XMHJ83D2X4V")
+APP_KEY_ID = os.getenv("MOENGAGE_APP_KEY_ID", "95PNUHBSYSLLJZ22PEOFMKF2")
 
 # ============================================================================
 # API ENDPOINTS

@@ -185,10 +185,11 @@ class MoEngageAPIClient:
                 # Errors will be handled in create_segment()
                 if not has_id and not has_existing and not has_error:
                     truncated = str(response_data)[:500]
-                    raise MoEngageAPIError(
-                        f"[{request_id}] Invalid segmentation response: no 'id' or 'segment_id' key. "
-                        f"Response: {truncated}"
+                    logger.warning(
+                        f"[{request_id}] Segmentation response has no direct 'id' key "
+                        f"(will attempt extraction upstream). Response: {truncated}"
                     )
+                # Always pass through — never raise for segmentation
 
             elif endpoint_type == "campaign_meta":
                 # Must have "campaigns" key (list)
@@ -291,6 +292,14 @@ class MoEngageAPIClient:
                     self._validate_response_shape(response_data, endpoint_type, request_id)
                 except MoEngageAPIError:
                     raise
+
+                # For segmentation endpoints, return the parsed data even if status != 200
+                # because error responses contain useful info (existing_cs_id, etc.)
+                if endpoint_type == "segmentation" and response_data:
+                    if endpoint_type in self.circuit_breakers:
+                        self.circuit_breakers[endpoint_type].record_success()
+                    logger.debug(f"[{request_id}] {method} {url} -> {response.status_code}")
+                    return response_data
 
                 response.raise_for_status()
 

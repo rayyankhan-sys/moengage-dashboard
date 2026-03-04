@@ -136,8 +136,8 @@ def page_dashboard():
     db = MoEngageDatabase()
 
     # ── Auto-Import from Bookmarklet ─────────────────────────────
-    qp = st.query_params
-    if qp.get("auto_import") == "1":
+    qp = st.experimental_get_query_params()
+    if qp.get("auto_import", [None])[0] == "1":
         _fields = [
             ("uk_total", "TOTAL_USERS", "GB"),
             ("uk_active", "ACTIVE_USERS_60D", "GB"),
@@ -158,12 +158,12 @@ def page_dashboard():
             ("ae_unsub_push", "UNSUBSCRIBED_PUSH_PERIOD", "AE"),
             ("ae_unsub_email", "UNSUBSCRIBED_EMAIL_PERIOD", "AE"),
         ]
-        _ps = qp.get("ps", "")
-        _pe = qp.get("pe", "")
+        _ps = qp.get("ps", [""])[0]
+        _pe = qp.get("pe", [""])[0]
         if _ps and _pe:
             _saved = 0
             for _param, _seg_type, _country in _fields:
-                _val = int(qp.get(_param, "0") or "0")
+                _val = int(qp.get(_param, ["0"])[0] or "0")
                 if _val > 0:
                     db.upsert_segment_metric(
                         segment_type=_seg_type,
@@ -175,7 +175,7 @@ def page_dashboard():
                     )
                     _saved += 1
             st.success(f"Auto-imported {_saved} segment counts for {_ps} to {_pe}")
-            st.query_params.clear()
+            st.experimental_set_query_params()
         else:
             st.warning("Auto-import needs ps (period start) and pe (period end) params.")
 

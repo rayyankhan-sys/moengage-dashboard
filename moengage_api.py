@@ -528,8 +528,10 @@ class MoEngageAPIClient:
 
     def get_segment_count(self, segment_id: str) -> Optional[int]:
         """
-        Retrieve segment count (user_count) from GET segment endpoint
-        Returns None if not yet computed
+        Retrieve segment count from GET segment endpoint.
+        Tries multiple possible field names since the MoEngage API docs
+        don't explicitly document which field contains the user count.
+        Returns None if not yet computed.
         """
         auth_header = self._get_basic_auth_header(self.data_api_key)
         self._apply_rate_limit(SEGMENT_API_RATE_LIMIT)
@@ -539,16 +541,51 @@ class MoEngageAPIClient:
 
         try:
             response = self._make_request("GET", url, auth_header, endpoint_type="segmentation")
+
+            # Log the FULL response keys for debugging
+            logger.info(f"Segment {segment_id} GET response top-level keys: {list(response.keys())}")
+
             # MoEngage v3 may nest under "data" key
             data_obj = response.get("data", {}) if isinstance(response.get("data"), dict) else {}
-            user_count = response.get("user_count") or data_obj.get("user_count")
+            if data_obj:
+                logger.info(f"Segment {segment_id} data keys: {list(data_obj.keys())}")
 
-            if user_count is not None:
-                logger.info(f"Segment {segment_id} user_count: {user_count}")
-                return user_count
-            else:
-                logger.debug(f"Segment {segment_id} not yet computed (no user_count)")
-                return None
+            # Try multiple possible field names for the user count
+            count_fields = [
+                'user_count', 'count', 'size', 'total_count', 'total_users',
+                'users_count', 'reachable_users', 'segment_count', 'userCount',
+                'totalCount', 'segmentSize', 'users', 'total', 'audience_size',
+            ]
+
+            for field in count_fields:
+                val = response.get(field)
+                if val is not None:
+                    logger.info(f"Segment {segment_id} found count in top-level '{field}': {val}")
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Segment {segment_id} field '{field}' not int-convertible: {val}")
+
+                val = data_obj.get(field)
+                if val is not None:
+                    logger.info(f"Segment {segment_id} found count in data.'{field}': {val}")
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Segment {segment_id} data.'{field}' not int-convertible: {val}")
+
+            # Check for any numeric fields that could be counts
+            for key, val in data_obj.items():
+                if isinstance(val, (int, float)) and val > 0 and key not in ('created_time', 'updated_time'):
+                    logger.info(f"Segment {segment_id} found numeric field data.'{key}': {val}")
+
+            # Log full response for debugging if no count found
+            truncated = str(response)[:800]
+            logger.warning(
+                f"Segment {segment_id} - no count field found in response. "
+                f"Response: {truncated}"
+            )
+            return None
 
         except MoEngageAPIError as e:
             logger.warning(f"Error fetching segment {segment_id}: {e}")

@@ -6,6 +6,7 @@ with comprehensive error isolation, resumability, validation, and progress track
 import json
 import logging
 import time
+import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Callable
 
@@ -19,6 +20,8 @@ from config import (
     EVENT_NAMES,
     CAMPAIGN_TYPES,
     PUSH_RECEIVED_EVENTS,
+    MOENGAGE_DASHBOARD_TOKEN,
+    MOENGAGE_DASHBOARD_BASE_URL,
 )
 
 logger = logging.getLogger(__name__)
@@ -1203,6 +1206,89 @@ class DataPuller:
                 )
             raise
 
+    def fetch_dashboard_counts(self, period_start, period_end, progress_callback=None):
+        """Fetch real user counts from MoEngage internal dashboard API."""
+        results = {}
+        try:
+            token = MOENGAGE_DASHBOARD_TOKEN
+            base_url = MOENGAGE_DASHBOARD_BASE_URL
+        except Exception:
+            logger.warning("No dashboard token configured")
+            return results
+        if not token:
+            return results
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        base = base_url.rstrip("/")
+        all_segments = []
+        for country_code in COUNTRY_CODES:
+            for seg_type in ALL_SEGMENT_TYPES:
+                row = self.db.get_segment_metric(seg_type, country_code, period_start, period_end)
+                if row and row.get("segment_id"):
+                    sk = f"{country_code}_{seg_type}".lower()
+                    all_segments.append({"key": sk, "segment_id": row["segment_id"], "segment_type": seg_type, "country": country_code})
+        if not all_segments:
+            return results
+        total = len(all_segments)
+        logger.info(f"Fetching dashboard counts for {total} segments")
+        rq_map = {}
+        for i, seg in enumerate(all_segments):
+            if progress_callback:
+                progress_callback(i, total * 2, f"Triggering count: {seg['key']}")
+            try:
+                payload = {"filters": {"included_filters": {"filter_operator": "and", "filters": [{"filter_type": "custom_segments", "id": seg["segment_id"], "name": seg["key"]}]}}, "reachability": {"push": {"platforms": ["ANDROID", "iOS", "web"], "aggregated_count_required": True}, "email": {"aggregated_count_required": True}, "sms": {"aggregated_count_required": True}}, "channel_source": "all", "cs_id": seg["segment_id"]}
+                resp = requests.post(f"{base}/segmentation/recent_query/count?api=1", headers=headers, json=payload, timeout=30)
+                data = resp.json()
+                if data.get("success") and data.get("rq_id"):
+                    rq_map[data["rq_id"]] = seg
+                else:
+                    logger.warning(f"Failed trigger for {seg['key']}: {data}")
+            except Exception as e:
+                logger.error(f"Error triggering {seg['key']}: {e}")
+            time.sleep(0.3)
+        if not rq_map:
+            return results
+        pending_ids = list(rq_map.keys())
+        for poll_num in range(20):
+            if not pending_ids:
+                break
+            if progress_callback:
+                done = len(rq_map) - len(pending_ids)
+                progress_callback(total + done, total * 2, f"Polling counts ({done}/{len(rq_map)} done)")
+            time.sleep(3)
+            try:
+                resp = requests.post(f"{base}/segmentation/recent_query/get_bulk?api=1", headers=headers, json={"ids": pending_ids}, timeout=30)
+                pd = resp.json()
+                if not isinstance(pd.get("data"), list):
+                    continue
+                still_pending = []
+                for rd in pd["data"]:
+                    rq_id = rd.get("_id")
+                    if rq_id not in rq_map:
+                        continue
+                    if rd.get("status") == "completed":
+                        seg = rq_map[rq_id]
+                        uc = rd.get("user_count", 0)
+                        rc = rd.get("reachability_count", {})
+                        st = seg["segment_type"].lower()
+                        if "push" in st and "unsub" not in st:
+                            count = rc.get("push", {}).get("unique_count", uc)
+                        elif "email" in st and "unsub" not in st:
+                            count = rc.get("email", {}).get("unique_count", uc)
+                        else:
+                            count = uc
+                        results[seg["key"]] = count
+                        logger.info(f"Count for {seg['key']}: {count}")
+                        try:
+                            self.db.upsert_segment_metric(segment_type=seg["segment_type"], country=seg["country"], user_count=count, segment_id=seg["segment_id"], period_start=period_start, period_end=period_end)
+                        except Exception as e:
+                            logger.error(f"Store error {seg['key']}: {e}")
+                    else:
+                        still_pending.append(rq_id)
+                pending_ids = still_pending
+            except Exception as e:
+                logger.error(f"Poll error: {e}")
+        logger.info(f"Dashboard count fetch: {len(results)} counts retrieved")
+        return results
     def _cleanup_segments(self) -> None:
         """Clean up all segments created in this run (called in finally block)"""
         if not self.created_segment_ids:

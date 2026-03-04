@@ -135,6 +135,50 @@ def page_dashboard():
 
     db = MoEngageDatabase()
 
+    # ── Auto-Import from Bookmarklet ─────────────────────────────
+    qp = st.query_params
+    if qp.get("auto_import") == "1":
+        _fields = [
+            ("uk_total", "TOTAL_USERS", "GB"),
+            ("uk_active", "ACTIVE_USERS_60D", "GB"),
+            ("uk_transacted", "TRANSACTED_USERS_PERIOD", "GB"),
+            ("uk_recv_push", "RECEIVED_PUSH_PERIOD", "GB"),
+            ("uk_recv_email", "RECEIVED_EMAIL_PERIOD", "GB"),
+            ("uk_active_push", "ACTIVE_PUSH_PERIOD", "GB"),
+            ("uk_active_email", "ACTIVE_EMAIL_PERIOD", "GB"),
+            ("uk_unsub_push", "UNSUBSCRIBED_PUSH_PERIOD", "GB"),
+            ("uk_unsub_email", "UNSUBSCRIBED_EMAIL_PERIOD", "GB"),
+            ("ae_total", "TOTAL_USERS", "AE"),
+            ("ae_active", "ACTIVE_USERS_60D", "AE"),
+            ("ae_transacted", "TRANSACTED_USERS_PERIOD", "AE"),
+            ("ae_recv_push", "RECEIVED_PUSH_PERIOD", "AE"),
+            ("ae_recv_email", "RECEIVED_EMAIL_PERIOD", "AE"),
+            ("ae_active_push", "ACTIVE_PUSH_PERIOD", "AE"),
+            ("ae_active_email", "ACTIVE_EMAIL_PERIOD", "AE"),
+            ("ae_unsub_push", "UNSUBSCRIBED_PUSH_PERIOD", "AE"),
+            ("ae_unsub_email", "UNSUBSCRIBED_EMAIL_PERIOD", "AE"),
+        ]
+        _ps = qp.get("ps", "")
+        _pe = qp.get("pe", "")
+        if _ps and _pe:
+            _saved = 0
+            for _param, _seg_type, _country in _fields:
+                _val = int(qp.get(_param, "0") or "0")
+                if _val > 0:
+                    db.upsert_segment_metric(
+                        segment_type=_seg_type,
+                        country=_country,
+                        user_count=_val,
+                        segment_id="auto_import",
+                        period_start=_ps,
+                        period_end=_pe,
+                    )
+                    _saved += 1
+            st.success(f"Auto-imported {_saved} segment counts for {_ps} to {_pe}")
+            st.query_params.clear()
+        else:
+            st.warning("Auto-import needs ps (period start) and pe (period end) params.")
+
     # ==================================================================
     # TOP CONTROL BAR — Date Pickers + Actions
     # ==================================================================
@@ -1273,6 +1317,110 @@ def _render_settings(db):
                     )
                     saved += 1
             st.success(f"Saved {saved} metric(s) for {ps} to {pe}")
+
+
+    # ── One-Click Auto-Fetch Bookmarklet ─────────────────────────
+    st.markdown("---")
+    st.subheader("One-Click Auto-Fetch from MoEngage")
+    st.caption(
+        "Drag the button below to your browser bookmarks bar. "
+        "Then, while logged into MoEngage, click it to auto-fetch "
+        "all 18 segment counts and import them into this dashboard."
+    )
+
+    # Segment IDs mapping (field_name -> segment_id)
+    # These should match the segments created by the Metrics Calculator
+    _seg_ids = st.session_state.get("segment_ids", {})
+
+    with st.form("bookmarklet_config_form"):
+        st.markdown("**Configure Segment IDs**")
+        st.caption("Paste the MoEngage segment IDs from the Metrics Calculator.")
+        bk_c1, bk_c2 = st.columns(2)
+        with bk_c1:
+            st.markdown("**UK Segments**")
+            bk_uk_total = st.text_input("UK Total Users", value=_seg_ids.get("uk_total", ""), key="bk_uk_total")
+            bk_uk_active = st.text_input("UK Active Users", value=_seg_ids.get("uk_active", ""), key="bk_uk_active")
+            bk_uk_transacted = st.text_input("UK Transacted", value=_seg_ids.get("uk_transacted", ""), key="bk_uk_transacted")
+            bk_uk_recv_push = st.text_input("UK Recv Push", value=_seg_ids.get("uk_recv_push", ""), key="bk_uk_recv_push")
+            bk_uk_recv_email = st.text_input("UK Recv Email", value=_seg_ids.get("uk_recv_email", ""), key="bk_uk_recv_email")
+            bk_uk_active_push = st.text_input("UK Active Push", value=_seg_ids.get("uk_active_push", ""), key="bk_uk_active_push")
+            bk_uk_active_email = st.text_input("UK Active Email", value=_seg_ids.get("uk_active_email", ""), key="bk_uk_active_email")
+            bk_uk_unsub_push = st.text_input("UK Unsub Push", value=_seg_ids.get("uk_unsub_push", ""), key="bk_uk_unsub_push")
+            bk_uk_unsub_email = st.text_input("UK Unsub Email", value=_seg_ids.get("uk_unsub_email", ""), key="bk_uk_unsub_email")
+        with bk_c2:
+            st.markdown("**UAE Segments**")
+            bk_ae_total = st.text_input("UAE Total Users", value=_seg_ids.get("ae_total", ""), key="bk_ae_total")
+            bk_ae_active = st.text_input("UAE Active Users", value=_seg_ids.get("ae_active", ""), key="bk_ae_active")
+            bk_ae_transacted = st.text_input("UAE Transacted", value=_seg_ids.get("ae_transacted", ""), key="bk_ae_transacted")
+            bk_ae_recv_push = st.text_input("UAE Recv Push", value=_seg_ids.get("ae_recv_push", ""), key="bk_ae_recv_push")
+            bk_ae_recv_email = st.text_input("UAE Recv Email", value=_seg_ids.get("ae_recv_email", ""), key="bk_ae_recv_email")
+            bk_ae_active_push = st.text_input("UAE Active Push", value=_seg_ids.get("ae_active_push", ""), key="bk_ae_active_push")
+            bk_ae_active_email = st.text_input("UAE Active Email", value=_seg_ids.get("ae_active_email", ""), key="bk_ae_active_email")
+            bk_ae_unsub_push = st.text_input("UAE Unsub Push", value=_seg_ids.get("ae_unsub_push", ""), key="bk_ae_unsub_push")
+            bk_ae_unsub_email = st.text_input("UAE Unsub Email", value=_seg_ids.get("ae_unsub_email", ""), key="bk_ae_unsub_email")
+
+        bk_ps = st.date_input("Period Start", key="bk_period_start")
+        bk_pe = st.date_input("Period End", key="bk_period_end")
+
+        bk_submitted = st.form_submit_button("Generate Bookmarklet", type="primary")
+
+    if bk_submitted:
+        _ids = {
+            "uk_total": bk_uk_total, "uk_active": bk_uk_active,
+            "uk_transacted": bk_uk_transacted,
+            "uk_recv_push": bk_uk_recv_push, "uk_recv_email": bk_uk_recv_email,
+            "uk_active_push": bk_uk_active_push, "uk_active_email": bk_uk_active_email,
+            "uk_unsub_push": bk_uk_unsub_push, "uk_unsub_email": bk_uk_unsub_email,
+            "ae_total": bk_ae_total, "ae_active": bk_ae_active,
+            "ae_transacted": bk_ae_transacted,
+            "ae_recv_push": bk_ae_recv_push, "ae_recv_email": bk_ae_recv_email,
+            "ae_active_push": bk_ae_active_push, "ae_active_email": bk_ae_active_email,
+            "ae_unsub_push": bk_ae_unsub_push, "ae_unsub_email": bk_ae_unsub_email,
+        }
+        st.session_state["segment_ids"] = _ids
+
+        # Build the IDs JSON for the bookmarklet
+        _ids_json = json.dumps({k: v for k, v in _ids.items() if v})
+        _ps_str = bk_ps.strftime("%Y-%m-%d")
+        _pe_str = bk_pe.strftime("%Y-%m-%d")
+        _dash_url = "https://web-production-233fc.up.railway.app"
+
+        # Bookmarklet JS
+        _bk_js = (
+            "javascript:void((async function(){"
+            "var S=" + _ids_json + ";"
+            "var D='" + _dash_url + "';"
+            "var ps='" + _ps_str + "';"
+            "var pe='" + _pe_str + "';"
+            "var p={};"
+            "var n=Object.keys(S).length;"
+            "var i=0;"
+            "for(var k in S){"
+            "i++;"
+            "document.title='Fetching '+i+'/'+n+'...';"
+            "try{"
+            "var r=await fetch('/v2/custom-segments/dashboard/'+S[k]+'/meta',{credentials:'include'});"
+            "var j=await r.json();"
+            "p[k]=j.recent_query?j.recent_query.user_count||0:0;"
+            "}catch(e){p[k]=0;}"
+            "}"
+            "var u=D+'/?auto_import=1&ps='+ps+'&pe='+pe;"
+            "for(var k in p){u+='&'+k+'='+p[k];}"
+            "document.title='Done! Redirecting...';"
+            "window.open(u,'_blank');"
+            "})())"
+        )
+
+        st.success("Bookmarklet generated! Copy the link below:")
+        st.code(_bk_js, language=None)
+        st.info(
+            "**How to use:**\n"
+            "1. Copy the code above\n"
+            "2. Create a new bookmark in your browser\n"
+            "3. Paste the code as the URL\n"
+            "4. Go to any MoEngage page (while logged in)\n"
+            "5. Click the bookmark — it will fetch all counts and redirect here"
+        )
 
 # ============================================================================
 # MAIN

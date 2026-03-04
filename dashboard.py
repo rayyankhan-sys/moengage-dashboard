@@ -1399,7 +1399,7 @@ def _render_settings(db):
             "i++;"
             "document.title='Fetching '+i+'/'+n+'...';"
             "try{"
-            "var r=await fetch('/v2/custom-segments/dashboard/'+S[k]+'/meta',{credentials:'include'});"
+            "var r=await fetch('/v2/custom-segments/dashboard/'+S[k]+'/meta',{headers:{'Authorization':'Bearer '+localStorage.getItem('bearer')}});"
             "var j=await r.json();"
             "p[k]=j.recent_query?j.recent_query.user_count||0:0;"
             "}catch(e){p[k]=0;}"

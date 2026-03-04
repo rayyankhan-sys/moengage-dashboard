@@ -1169,6 +1169,111 @@ def _render_settings(db):
                 st.rerun()
 
 
+
+    # ── Manual Entry for User-Count Metrics ──────────────────────────
+    st.markdown("---")
+    st.subheader("\u270f Manual Entry \u2014 User-Count Metrics")
+    st.caption(
+        "These metrics are not available via the MoEngage API. "
+        "Enter values manually from the MoEngage dashboard."
+    )
+
+    with st.form("manual_metrics_form"):
+        me_col1, me_col2 = st.columns(2)
+        with me_col1:
+            me_start = st.date_input("Period Start", key="me_period_start")
+        with me_col2:
+            me_end = st.date_input("Period End", key="me_period_end")
+
+        st.markdown("#### UK Metrics")
+        uk_c1, uk_c2, uk_c3 = st.columns(3)
+        with uk_c1:
+            uk_total = st.number_input("Total Users", min_value=0, value=0, key="uk_total")
+        with uk_c2:
+            uk_active = st.number_input("Active Users (60d)", min_value=0, value=0, key="uk_active")
+        with uk_c3:
+            uk_transacted = st.number_input("Transacted Users", min_value=0, value=0, key="uk_transacted")
+
+        uk_c4, uk_c5, uk_c6 = st.columns(3)
+        with uk_c4:
+            uk_recv_push = st.number_input("Received Push", min_value=0, value=0, key="uk_recv_push")
+        with uk_c5:
+            uk_recv_email = st.number_input("Received Email", min_value=0, value=0, key="uk_recv_email")
+        with uk_c6:
+            uk_active_push = st.number_input("Active Push", min_value=0, value=0, key="uk_active_push")
+
+        uk_c7, uk_c8, uk_c9 = st.columns(3)
+        with uk_c7:
+            uk_active_email = st.number_input("Active Email", min_value=0, value=0, key="uk_active_email")
+        with uk_c8:
+            uk_unsub_push = st.number_input("Unsub Push", min_value=0, value=0, key="uk_unsub_push")
+        with uk_c9:
+            uk_unsub_email = st.number_input("Unsub Email", min_value=0, value=0, key="uk_unsub_email")
+
+        st.markdown("#### UAE Metrics")
+        ae_c1, ae_c2, ae_c3 = st.columns(3)
+        with ae_c1:
+            ae_total = st.number_input("Total Users", min_value=0, value=0, key="ae_total")
+        with ae_c2:
+            ae_active = st.number_input("Active Users (60d)", min_value=0, value=0, key="ae_active")
+        with ae_c3:
+            ae_transacted = st.number_input("Transacted Users", min_value=0, value=0, key="ae_transacted")
+
+        ae_c4, ae_c5, ae_c6 = st.columns(3)
+        with ae_c4:
+            ae_recv_push = st.number_input("Received Push", min_value=0, value=0, key="ae_recv_push")
+        with ae_c5:
+            ae_recv_email = st.number_input("Received Email", min_value=0, value=0, key="ae_recv_email")
+        with ae_c6:
+            ae_active_push = st.number_input("Active Push", min_value=0, value=0, key="ae_active_push")
+
+        ae_c7, ae_c8, ae_c9 = st.columns(3)
+        with ae_c7:
+            ae_active_email = st.number_input("Active Email", min_value=0, value=0, key="ae_active_email")
+        with ae_c8:
+            ae_unsub_push = st.number_input("Unsub Push", min_value=0, value=0, key="ae_unsub_push")
+        with ae_c9:
+            ae_unsub_email = st.number_input("Unsub Email", min_value=0, value=0, key="ae_unsub_email")
+
+        submitted = st.form_submit_button("Save Metrics", type="primary")
+
+        if submitted:
+            ps = me_start.strftime("%Y-%m-%d")
+            pe = me_end.strftime("%Y-%m-%d")
+            entries = [
+                ("TOTAL_USERS", "GB", uk_total),
+                ("ACTIVE_USERS_60D", "GB", uk_active),
+                ("TRANSACTED_USERS_PERIOD", "GB", uk_transacted),
+                ("RECEIVED_PUSH_PERIOD", "GB", uk_recv_push),
+                ("RECEIVED_EMAIL_PERIOD", "GB", uk_recv_email),
+                ("ACTIVE_PUSH_PERIOD", "GB", uk_active_push),
+                ("ACTIVE_EMAIL_PERIOD", "GB", uk_active_email),
+                ("UNSUBSCRIBED_PUSH_PERIOD", "GB", uk_unsub_push),
+                ("UNSUBSCRIBED_EMAIL_PERIOD", "GB", uk_unsub_email),
+                ("TOTAL_USERS", "AE", ae_total),
+                ("ACTIVE_USERS_60D", "AE", ae_active),
+                ("TRANSACTED_USERS_PERIOD", "AE", ae_transacted),
+                ("RECEIVED_PUSH_PERIOD", "AE", ae_recv_push),
+                ("RECEIVED_EMAIL_PERIOD", "AE", ae_recv_email),
+                ("ACTIVE_PUSH_PERIOD", "AE", ae_active_push),
+                ("ACTIVE_EMAIL_PERIOD", "AE", ae_active_email),
+                ("UNSUBSCRIBED_PUSH_PERIOD", "AE", ae_unsub_push),
+                ("UNSUBSCRIBED_EMAIL_PERIOD", "AE", ae_unsub_email),
+            ]
+            saved = 0
+            for seg_type, country, value in entries:
+                if value > 0:
+                    db.upsert_segment_metric(
+                        segment_type=seg_type,
+                        country=country,
+                        user_count=value,
+                        segment_id="manual",
+                        period_start=ps,
+                        period_end=pe,
+                    )
+                    saved += 1
+            st.success(f"Saved {saved} metric(s) for {ps} to {pe}")
+
 # ============================================================================
 # MAIN
 # ============================================================================

@@ -269,6 +269,20 @@ def page_dashboard():
                     period_end_str,
                     progress_callback=update_progress,
                 )
+                # Fetch real counts from MoEngage dashboard API
+                progress_bar.progress(0.5, text="Fetching real user counts from dashboard...")
+                try:
+                    count_results = puller.fetch_dashboard_counts(
+                        period_start_str, period_end_str,
+                        progress_callback=update_progress,
+                    )
+                    if count_results:
+                        st.success(f"Fetched {len(count_results)} segment counts from dashboard API")
+                    else:
+                        st.warning("Could not fetch counts from dashboard API (token may be expired)")
+                except Exception as e:
+                    logger.warning(f"Dashboard count fetch failed: {e}")
+                    st.warning(f"Count fetch from dashboard API failed: {e}")
                 st.session_state.pull_summary = summary
                 st.session_state.data_pulled = True
                 progress_bar.progress(1.0, text="Done!")

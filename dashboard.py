@@ -40,8 +40,8 @@ st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
     div[data-testid="stMetric"] {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
+        background-color: #1A1F2E;
+        border: 1px solid #2D3348;
         padding: 12px 16px;
         border-radius: 8px;
     }
@@ -51,7 +51,7 @@ st.markdown("""
         border-radius: 4px 4px 0 0;
     }
     .section-header {
-        background-color: #f0f2f6;
+        background-color: #1A1F2E;
         padding: 12px 16px;
         border-radius: 6px;
         margin: 20px 0 12px 0;

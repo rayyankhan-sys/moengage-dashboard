@@ -1,9 +1,10 @@
 """
 MoEngage Automation Dashboard
 Streamlit-based dashboard for viewing and pulling MoEngage metrics
-Clean flow: Pick dates → Pull Data → View → Export
+Clean flow: Pick dates â Pull Data â View â Export
 """
 import json
+import base64
 import logging
 import os
 from datetime import datetime, timedelta
@@ -29,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Streamlit page configuration
 st.set_page_config(
-    page_title="MoEngage Dashboard — Aspora",
-    page_icon="📊",
+    page_title="MoEngage Dashboard â Aspora",
+    page_icon="ð",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -98,19 +99,19 @@ def save_transactional_campaigns(campaigns: list) -> None:
 def fmt_pct(value: float) -> str:
     """Format percentage value"""
     if value is None:
-        return "—"
+        return "â"
     return f"{value:.2f}%"
 
 
 def fmt_num(value) -> str:
     """Format number with thousands separator"""
     if value is None:
-        return "—"
+        return "â"
     return f"{int(value):,}"
 
 
 def safe_div(numerator, denominator, as_pct=False):
-    """Safe division — returns None if denominator is 0 or None"""
+    """Safe division â returns None if denominator is 0 or None"""
     if not denominator or numerator is None:
         return None
     result = numerator / denominator
@@ -130,12 +131,44 @@ def safe_sub(a, b):
 
 def page_dashboard():
     """Main dashboard page"""
-    st.title("📊 MoEngage Comms Dashboard")
-    st.caption("Aspora — UK & UAE Communications Metrics")
+    st.title("ð MoEngage Comms Dashboard")
+    st.caption("Aspora â UK & UAE Communications Metrics")
+
+    # --- Bookmarklet count receiver ---
+    try:
+        qp = st.experimental_get_query_params()
+        if "update_counts" in qp:
+            raw_b64 = qp["update_counts"][0]
+            count_json = json.loads(base64.b64decode(raw_b64).decode("utf-8"))
+            db = MoEngageDatabase()
+            today = datetime.now()
+            period_end = today.strftime("%Y-%m-%d")
+            period_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+            saved = 0
+            for seg_id, info in count_json.items():
+                try:
+                    db.upsert_segment_metric(
+                        segment_type=info.get("type", ""),
+                        country=info.get("country", ""),
+                        user_count=info.get("count", 0),
+                        segment_id=seg_id,
+                        period_start=period_start,
+                        period_end=period_end,
+                        raw_json=json.dumps(info),
+                    )
+                    saved += 1
+                except Exception as e:
+                    logger.error(f"Failed to save {seg_id}: {e}")
+            st.success(f"Bookmarklet: saved {saved} segment counts!")
+            st.experimental_set_query_params()
+    except Exception as e:
+        if "update_counts" in str(e):
+            logger.error(f"Bookmarklet handler error: {e}")
+
 
     db = MoEngageDatabase()
 
-    # ── Auto-Import from Bookmarklet ─────────────────────────────
+    # ââ Auto-Import from Bookmarklet âââââââââââââââââââââââââââââ
     qp = st.experimental_get_query_params()
     if qp.get("auto_import", [None])[0] == "1":
         _fields = [
@@ -180,7 +213,7 @@ def page_dashboard():
             st.warning("Auto-import needs ps (period start) and pe (period end) params.")
 
     # ==================================================================
-    # TOP CONTROL BAR — Date Pickers + Actions
+    # TOP CONTROL BAR â Date Pickers + Actions
     # ==================================================================
     st.markdown("---")
 
@@ -232,7 +265,7 @@ def page_dashboard():
 
     with btn_col1:
         pull_clicked = st.button(
-            "🔄 Pull Data",
+            "ð Pull Data",
             key="pull_data",
             use_container_width=True,
             type="primary",
@@ -240,14 +273,14 @@ def page_dashboard():
 
     with btn_col2:
         export_clicked = st.button(
-            "📥 Export Report",
+            "ð¥ Export Report",
             key="export_report",
             use_container_width=True,
         )
 
     with btn_col3:
         dry_run_clicked = st.button(
-            "🧪 Dry Run",
+            "ð§ª Dry Run",
             key="dry_run",
             use_container_width=True,
             help="Test the pull without making real API calls",
@@ -295,12 +328,12 @@ def page_dashboard():
 
                 if err_count == 0:
                     st.success(
-                        f"Pull complete — {seg_count} segments, {camp_count} campaigns "
+                        f"Pull complete â {seg_count} segments, {camp_count} campaigns "
                         f"in {total_time:.1f}s"
                     )
                 else:
                     st.warning(
-                        f"Pull complete with {err_count} error(s) — "
+                        f"Pull complete with {err_count} error(s) â "
                         f"{seg_count} segments, {camp_count} campaigns"
                     )
                 st.rerun()
@@ -315,7 +348,7 @@ def page_dashboard():
                 puller = DataPuller(dry_run=True)
                 summary = puller.pull_all_data(period_start_str, period_end_str)
                 st.info(
-                    f"Dry run complete — would create {len(summary.get('segments', {}))} segments. "
+                    f"Dry run complete â would create {len(summary.get('segments', {}))} segments. "
                     f"Check logs for payload details."
                 )
             except Exception as e:
@@ -345,7 +378,7 @@ def page_dashboard():
     # Show download button if report is ready
     if st.session_state.report_bytes:
         st.download_button(
-            label="⬇️ Download Weekly Report (.xlsx)",
+            label="â¬ï¸ Download Weekly Report (.xlsx)",
             data=st.session_state.report_bytes,
             file_name=f"MoEngage_Report_{period_start_str}_to_{period_end_str}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -355,10 +388,10 @@ def page_dashboard():
     st.markdown("---")
 
     # ==================================================================
-    # TABS — Metrics, Comparison, Campaigns, Pull History, Settings
+    # TABS â Metrics, Comparison, Campaigns, Pull History, Settings
     # ==================================================================
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📈 Metrics", "🔄 Comparison", "📋 Campaigns", "🕐 Pull History", "⚙️ Settings"]
+        ["ð Metrics", "ð Comparison", "ð Campaigns", "ð Pull History", "âï¸ Settings"]
     )
 
     # Fetch current data from DB
@@ -393,13 +426,13 @@ def page_dashboard():
             st.info("No data for the selected period. Use **Pull Data** above to fetch metrics.")
         else:
             # --- UK SECTION ---
-            st.subheader("🇬🇧 United Kingdom")
+            st.subheader("ð¬ð§ United Kingdom")
             _render_country_metrics("GB", seg, campaign_metrics)
 
             st.markdown("---")
 
             # --- UAE SECTION ---
-            st.subheader("🇦🇪 United Arab Emirates")
+            st.subheader("ð¦ðª United Arab Emirates")
             _render_country_metrics("AE", seg, campaign_metrics)
 
     # ==================================================================
@@ -507,9 +540,9 @@ def _render_country_metrics(
     pn_ratio = PN_SENT_TO_IMPRESSION_RATIO.get(country_code, 1.0)
 
     # ==================================================================
-    # RAW DATA — User Base
+    # RAW DATA â User Base
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — User Base</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â User Base</div>', unsafe_allow_html=True)
 
     total_users = seg.get(("TOTAL_USERS", country_code), 0)
     active_users = seg.get(("ACTIVE_USERS_60D", country_code), 0)
@@ -524,9 +557,9 @@ def _render_country_metrics(
         st.metric("Transacted Users", fmt_num(transacted_users))
 
     # ==================================================================
-    # RAW DATA — Segment Counts
+    # RAW DATA â Segment Counts
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — Segment Counts</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â Segment Counts</div>', unsafe_allow_html=True)
 
     recv_push = seg.get(("RECEIVED_PUSH_PERIOD", country_code), 0)
     recv_email = seg.get(("RECEIVED_EMAIL_PERIOD", country_code), 0)
@@ -550,16 +583,16 @@ def _render_country_metrics(
     with c5:
         st.metric("Email Reachable (Raw)", fmt_num(email_reachable))
     with c6:
-        st.metric("Unsub Rate — Push", fmt_num(unsub_push))
+        st.metric("Unsub Rate â Push", fmt_num(unsub_push))
 
     c7, c8 = st.columns(2)
     with c7:
         st.metric("Unsubscribed Email", fmt_num(unsub_email))
 
     # ==================================================================
-    # RAW DATA — Promotional & Transactional
+    # RAW DATA â Promotional & Transactional
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — Campaign Metrics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â Campaign Metrics</div>', unsafe_allow_html=True)
 
     # Filter campaigns for this country
     country_campaigns = [c for c in campaign_metrics if c.get("country") == country_code]
@@ -611,9 +644,9 @@ def _render_country_metrics(
         st.metric("Transactional Email Sent", fmt_num(txn_email_sent))
 
     # ==================================================================
-    # COMPUTED METRICS — Reachability & Reach
+    # COMPUTED METRICS â Reachability & Reach
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Reachability & Reach</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Reachability & Reach</div>', unsafe_allow_html=True)
 
     # Reachability percentages
     push_reachable_pct = safe_div(push_reachable, total_users, as_pct=True)
@@ -625,45 +658,45 @@ def _render_country_metrics(
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
-        st.metric("Comms Reachable (% Total) — Push", fmt_pct(push_reachable_pct))
+        st.metric("Comms Reachable (% Total) â Push", fmt_pct(push_reachable_pct))
     with c2:
-        st.metric("Comms Reachable (% Total) — Email", fmt_pct(email_reachable_pct))
+        st.metric("Comms Reachable (% Total) â Email", fmt_pct(email_reachable_pct))
     with c3:
-        st.metric("Comms Reached (% Total) — Push", fmt_pct(push_reached_pct))
+        st.metric("Comms Reached (% Total) â Push", fmt_pct(push_reached_pct))
     with c4:
-        st.metric("Comms Reached (% Total) — Email", fmt_pct(email_reached_pct))
+        st.metric("Comms Reached (% Total) â Email", fmt_pct(email_reached_pct))
     with c5:
-        st.metric("Comms Reachable (% Active) — Push", fmt_pct(push_reachable_active_pct))
+        st.metric("Comms Reachable (% Active) â Push", fmt_pct(push_reachable_active_pct))
     with c6:
-        st.metric("Comms Reachable (% Active) — Email", fmt_pct(email_reachable_active_pct))
+        st.metric("Comms Reachable (% Active) â Email", fmt_pct(email_reachable_active_pct))
 
     # ==================================================================
-    # COMPUTED METRICS — Unsubscribes
+    # COMPUTED METRICS â Unsubscribes
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Unsubscribe Rates</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Unsubscribe Rates</div>', unsafe_allow_html=True)
 
     unsub_rate_push = safe_div(unsub_push, total_users, as_pct=True)
     unsub_rate_email = safe_div(unsub_email, total_users, as_pct=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Unsubscribe Rate — Push", fmt_pct(unsub_rate_push))
+        st.metric("Unsubscribe Rate â Push", fmt_pct(unsub_rate_push))
     with c2:
-        st.metric("Unsubscribe Rate — Email", fmt_pct(unsub_rate_email))
+        st.metric("Unsubscribe Rate â Email", fmt_pct(unsub_rate_email))
 
     # ==================================================================
-    # COMPUTED METRICS — Est. Promo Push Sent
+    # COMPUTED METRICS â Est. Promo Push Sent
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Estimated Promo Push Sent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Estimated Promo Push Sent</div>', unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
         st.metric("Est. Promo Push Sent", fmt_num(est_promo_push_sent))
 
     # ==================================================================
-    # COMPUTED METRICS — Avg Comms per User
+    # COMPUTED METRICS â Avg Comms per User
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Avg Comms per User</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Avg Comms per User</div>', unsafe_allow_html=True)
 
     avg_promo_push_per_user = safe_div(est_promo_push_sent, total_users)
     avg_promo_email_per_user = safe_div(promo_email_sent, total_users)
@@ -672,22 +705,22 @@ def _render_country_metrics(
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        val_str = f"{avg_promo_push_per_user:.2f}" if avg_promo_push_per_user else "—"
-        st.metric("Avg Promo Comms per User — Push", val_str)
+        val_str = f"{avg_promo_push_per_user:.2f}" if avg_promo_push_per_user else "â"
+        st.metric("Avg Promo Comms per User â Push", val_str)
     with c2:
-        val_str = f"{avg_promo_email_per_user:.2f}" if avg_promo_email_per_user else "—"
-        st.metric("Avg Promo Comms per User — Email", val_str)
+        val_str = f"{avg_promo_email_per_user:.2f}" if avg_promo_email_per_user else "â"
+        st.metric("Avg Promo Comms per User â Email", val_str)
     with c3:
-        val_str = f"{avg_txn_push_per_user:.2f}" if avg_txn_push_per_user else "—"
-        st.metric("Avg Txn Comms per User — Push", val_str)
+        val_str = f"{avg_txn_push_per_user:.2f}" if avg_txn_push_per_user else "â"
+        st.metric("Avg Txn Comms per User â Push", val_str)
     with c4:
-        val_str = f"{avg_txn_email_per_user:.2f}" if avg_txn_email_per_user else "—"
-        st.metric("Avg Txn Comms per User — Email", val_str)
+        val_str = f"{avg_txn_email_per_user:.2f}" if avg_txn_email_per_user else "â"
+        st.metric("Avg Txn Comms per User â Email", val_str)
 
     # ==================================================================
-    # COMPUTED METRICS — Performance (Promotional)
+    # COMPUTED METRICS â Performance (Promotional)
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Performance (Promotional)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Performance (Promotional)</div>', unsafe_allow_html=True)
 
     promo_push_ctr_impression = safe_div(promo_push_clicks, promo_push_impressions, as_pct=True)
     promo_push_ctr_sent = safe_div(promo_push_clicks, est_promo_push_sent, as_pct=True)
@@ -705,9 +738,9 @@ def _render_country_metrics(
         st.metric("Promo Email CTR", fmt_pct(email_ctr))
 
     # ==================================================================
-    # COMPUTED METRICS — PNs & Emails per Reachable User
+    # COMPUTED METRICS â PNs & Emails per Reachable User
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Comms per Reachable User</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Comms per Reachable User</div>', unsafe_allow_html=True)
 
     # FIX: Use est_promo_push_sent (not raw impressions) to match report_generator
     # PNs per reachable = (estimated promo push sent + txn push sent) / push reachable
@@ -719,10 +752,10 @@ def _render_country_metrics(
 
     c1, c2 = st.columns(2)
     with c1:
-        val_str = f"{pns_per_reachable:.2f}" if pns_per_reachable else "—"
+        val_str = f"{pns_per_reachable:.2f}" if pns_per_reachable else "â"
         st.metric("PNs per Push Reachable User", val_str)
     with c2:
-        val_str = f"{emails_per_reachable:.2f}" if emails_per_reachable else "—"
+        val_str = f"{emails_per_reachable:.2f}" if emails_per_reachable else "â"
         st.metric("Emails per Email Reachable User", val_str)
 
 
@@ -775,7 +808,7 @@ def _render_comparison_tab(db):
     load_col = st.columns([1.5, 10])[0]
     with load_col:
         load_comp = st.button(
-            "📊 Load Comparison",
+            "ð Load Comparison",
             key="load_comparison",
             use_container_width=True,
             type="primary",
@@ -835,13 +868,13 @@ def _render_comparison_tab(db):
         period_b_label = st.session_state.comp_period_b
 
         # UK Comparison
-        st.subheader("🇬🇧 United Kingdom — Comparison")
+        st.subheader("ð¬ð§ United Kingdom â Comparison")
         _render_comparison_country("GB", seg_a, seg_b, camp_a, camp_b, period_a_label, period_b_label)
 
         st.markdown("---")
 
         # UAE Comparison
-        st.subheader("🇦🇪 United Arab Emirates — Comparison")
+        st.subheader("ð¦ðª United Arab Emirates â Comparison")
         _render_comparison_country("AE", seg_a, seg_b, camp_a, camp_b, period_a_label, period_b_label)
 
 
@@ -861,9 +894,9 @@ def _render_comparison_country(
     pn_ratio = PN_SENT_TO_IMPRESSION_RATIO.get(country_code, 1.0)
 
     # ==================================================================
-    # RAW DATA — User Base
+    # RAW DATA â User Base
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — User Base</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â User Base</div>', unsafe_allow_html=True)
 
     # Period A
     total_a = seg_a.get(("TOTAL_USERS", country_code), 0)
@@ -888,7 +921,7 @@ def _render_comparison_country(
 
     with c3:
         change = safe_div(safe_sub(total_a, total_b), total_b, as_pct=True) if total_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
 
     with c4:
         st.markdown("")
@@ -901,7 +934,7 @@ def _render_comparison_country(
         st.metric("Active (60d)", fmt_num(active_b))
     with c3:
         change = safe_div(safe_sub(active_a, active_b), active_b, as_pct=True) if active_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
@@ -913,14 +946,14 @@ def _render_comparison_country(
         st.metric("Transacted", fmt_num(transacted_b))
     with c3:
         change = safe_div(safe_sub(transacted_a, transacted_b), transacted_b, as_pct=True) if transacted_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
     # ==================================================================
-    # RAW DATA — Segment Counts
+    # RAW DATA â Segment Counts
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — Segment Counts</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â Segment Counts</div>', unsafe_allow_html=True)
 
     recv_push_a = seg_a.get(("RECEIVED_PUSH_PERIOD", country_code), 0)
     recv_push_b = seg_b.get(("RECEIVED_PUSH_PERIOD", country_code), 0)
@@ -944,7 +977,7 @@ def _render_comparison_country(
         st.metric("Recv Push", fmt_num(recv_push_b))
     with c3:
         change = safe_div(safe_sub(recv_push_a, recv_push_b), recv_push_b, as_pct=True) if recv_push_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
@@ -956,7 +989,7 @@ def _render_comparison_country(
         st.metric("Recv Email", fmt_num(recv_email_b))
     with c3:
         change = safe_div(safe_sub(recv_email_a, recv_email_b), recv_email_b, as_pct=True) if recv_email_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
@@ -968,7 +1001,7 @@ def _render_comparison_country(
         st.metric("Push Reachable", fmt_num(push_reach_b))
     with c3:
         change = safe_div(safe_sub(push_reach_a, push_reach_b), push_reach_b, as_pct=True) if push_reach_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
@@ -980,14 +1013,14 @@ def _render_comparison_country(
         st.metric("Email Reachable", fmt_num(email_reach_b))
     with c3:
         change = safe_div(safe_sub(email_reach_a, email_reach_b), email_reach_b, as_pct=True) if email_reach_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
     # ==================================================================
-    # RAW DATA — Campaign Metrics
+    # RAW DATA â Campaign Metrics
     # ==================================================================
-    st.markdown('<div class="section-header">📦 RAW DATA — Campaign Metrics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð¦ RAW DATA â Campaign Metrics</div>', unsafe_allow_html=True)
 
     camp_a_country = [c for c in camp_a if c.get("country") == country_code]
     camp_b_country = [c for c in camp_b if c.get("country") == country_code]
@@ -1027,7 +1060,7 @@ def _render_comparison_country(
         st.metric("Promo Push Impressions", fmt_num(promo_push_imp_b))
     with c3:
         change = safe_div(safe_sub(promo_push_imp_a, promo_push_imp_b), promo_push_imp_b, as_pct=True) if promo_push_imp_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
@@ -1039,14 +1072,14 @@ def _render_comparison_country(
         st.metric("Promo Email Sent", fmt_num(promo_email_sent_b))
     with c3:
         change = safe_div(safe_sub(promo_email_sent_a, promo_email_sent_b), promo_email_sent_b, as_pct=True) if promo_email_sent_b else None
-        st.metric("Change", fmt_pct(change) if change else "—")
+        st.metric("Change", fmt_pct(change) if change else "â")
     with c4:
         st.markdown("")
 
     # ==================================================================
-    # COMPUTED METRICS — Reachability (sample)
+    # COMPUTED METRICS â Reachability (sample)
     # ==================================================================
-    st.markdown('<div class="section-header">📊 COMPUTED METRICS — Reachability & Performance</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">ð COMPUTED METRICS â Reachability & Performance</div>', unsafe_allow_html=True)
 
     # Push reached %
     push_reached_pct_a = safe_div(recv_push_a, total_a, as_pct=True)
@@ -1054,12 +1087,12 @@ def _render_comparison_country(
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Comms Reached (%) — Push", fmt_pct(push_reached_pct_a))
+        st.metric("Comms Reached (%) â Push", fmt_pct(push_reached_pct_a))
     with c2:
-        st.metric("Comms Reached (%) — Push", fmt_pct(push_reached_pct_b))
+        st.metric("Comms Reached (%) â Push", fmt_pct(push_reached_pct_b))
     with c3:
         change = safe_div(safe_sub(push_reached_pct_a, push_reached_pct_b), 1, as_pct=False)
-        change_str = f"{change:+.2f}pp" if change else "—"
+        change_str = f"{change:+.2f}pp" if change else "â"
         st.metric("Change (pp)", change_str)
     with c4:
         st.markdown("")
@@ -1070,12 +1103,12 @@ def _render_comparison_country(
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Comms Reached (%) — Email", fmt_pct(email_reached_pct_a))
+        st.metric("Comms Reached (%) â Email", fmt_pct(email_reached_pct_a))
     with c2:
-        st.metric("Comms Reached (%) — Email", fmt_pct(email_reached_pct_b))
+        st.metric("Comms Reached (%) â Email", fmt_pct(email_reached_pct_b))
     with c3:
         change = safe_div(safe_sub(email_reached_pct_a, email_reached_pct_b), 1, as_pct=False)
-        change_str = f"{change:+.2f}pp" if change else "—"
+        change_str = f"{change:+.2f}pp" if change else "â"
         st.metric("Change (pp)", change_str)
     with c4:
         st.markdown("")
@@ -1091,7 +1124,7 @@ def _render_comparison_country(
         st.metric("Promo Push CTR", fmt_pct(push_ctr_b))
     with c3:
         change = safe_div(safe_sub(push_ctr_a, push_ctr_b), 1, as_pct=False)
-        change_str = f"{change:+.2f}pp" if change else "—"
+        change_str = f"{change:+.2f}pp" if change else "â"
         st.metric("Change (pp)", change_str)
     with c4:
         st.markdown("")
@@ -1107,7 +1140,7 @@ def _render_comparison_country(
         st.metric("Email Open Rate", fmt_pct(email_open_b))
     with c3:
         change = safe_div(safe_sub(email_open_a, email_open_b), 1, as_pct=False)
-        change_str = f"{change:+.2f}pp" if change else "—"
+        change_str = f"{change:+.2f}pp" if change else "â"
         st.metric("Change (pp)", change_str)
     with c4:
         st.markdown("")
@@ -1127,15 +1160,15 @@ def _render_settings(db):
         for i, campaign in enumerate(txn_campaigns):
             col_id, col_name, col_ch, col_ctry, col_remove = st.columns([2, 3, 1, 1, 1])
             with col_id:
-                st.text(campaign.get("campaign_id", "—"))
+                st.text(campaign.get("campaign_id", "â"))
             with col_name:
-                st.text(campaign.get("campaign_name", "—"))
+                st.text(campaign.get("campaign_name", "â"))
             with col_ch:
-                st.text(campaign.get("channel", "—"))
+                st.text(campaign.get("channel", "â"))
             with col_ctry:
-                st.text(campaign.get("country", "—"))
+                st.text(campaign.get("country", "â"))
             with col_remove:
-                if st.button("✕", key=f"rm_{i}"):
+                if st.button("â", key=f"rm_{i}"):
                     txn_campaigns.pop(i)
                     save_transactional_campaigns(txn_campaigns)
                     st.rerun()
@@ -1175,7 +1208,7 @@ def _render_settings(db):
 
     # Preflight check
     st.subheader("System Check")
-    if st.button("🩺 Run Preflight Check", use_container_width=False):
+    if st.button("ð©º Run Preflight Check", use_container_width=False):
         with st.spinner("Running preflight diagnostics..."):
             try:
                 from preflight_check import run_preflight
@@ -1185,11 +1218,11 @@ def _render_settings(db):
                     status = check.get("status", "UNKNOWN")
                     name = check.get("name", "Unknown Check")
                     if status == "PASS":
-                        st.success(f"✓ {name}")
+                        st.success(f"â {name}")
                     elif status == "FAIL":
-                        st.error(f"✗ {name}: {check.get('message', '')}")
+                        st.error(f"â {name}: {check.get('message', '')}")
                     elif status == "SKIP":
-                        st.info(f"⊘ {name} (skipped)")
+                        st.info(f"â {name} (skipped)")
 
                 passed = results.get("passed", 0)
                 total = results.get("total", 0)
@@ -1206,7 +1239,7 @@ def _render_settings(db):
     st.subheader("Database")
     st.text(f"Path: {DATABASE_PATH}")
 
-    if st.button("🗑️ Clear All Data", use_container_width=False):
+    if st.button("ðï¸ Clear All Data", use_container_width=False):
         st.session_state.confirm_clear = True
 
     if st.session_state.get("confirm_clear"):
@@ -1228,7 +1261,7 @@ def _render_settings(db):
 
 
 
-    # ── Manual Entry for User-Count Metrics ──────────────────────────
+    # ââ Manual Entry for User-Count Metrics ââââââââââââââââââââââââââ
     st.markdown("---")
     st.subheader("\u270f Manual Entry \u2014 User-Count Metrics")
     st.caption(
@@ -1333,7 +1366,7 @@ def _render_settings(db):
             st.success(f"Saved {saved} metric(s) for {ps} to {pe}")
 
 
-    # ── One-Click Auto-Fetch Bookmarklet ─────────────────────────
+    # ââ One-Click Auto-Fetch Bookmarklet âââââââââââââââââââââââââ
     st.markdown("---")
     st.subheader("One-Click Auto-Fetch from MoEngage")
     st.caption(
@@ -1474,7 +1507,7 @@ def _render_settings(db):
             "2. Create a new bookmark in your browser\n"
             "3. Paste the code as the URL\n"
             "4. Go to any MoEngage page (while logged in)\n"
-            "5. Click the bookmark — it will fetch all counts and redirect here"
+            "5. Click the bookmark â it will fetch all counts and redirect here"
         )
 
 # ============================================================================

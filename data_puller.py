@@ -703,14 +703,16 @@ class DataPuller:
                 return country
 
         # Fall back to name matching
-        name = campaign.get("name", "").lower()
+        name = (campaign.get("campaign_name") or campaign.get("name", "")).lower()
         if "uk" in name or "gb" in name:
             return "GB"
         elif "uae" in name or "ae" in name:
             return "AE"
+        elif "us_" in name or "us " in name or name.startswith("us"):
+            return "US"
 
         # Fallback: check tags
-        tags = campaign.get("tags", [])
+        tags = campaign.get("campaign_tags") or campaign.get("tags", [])
         if isinstance(tags, list):
             for tag in tags:
                 tag_upper = str(tag).upper()
@@ -734,7 +736,7 @@ class DataPuller:
     def _detect_channel(self, campaign: Dict) -> Optional[str]:
         """Detect channel from campaign metadata"""
         channel = campaign.get("channel", "").lower()
-        name = campaign.get("name", "").lower()
+        name = (campaign.get("campaign_name") or campaign.get("name", "")).lower()
 
         if channel in ["push", "android", "ios"] or "push" in name:
             return "push"
@@ -749,7 +751,7 @@ class DataPuller:
         FIX BUG 5: EVENT_TRIGGERED now defaults to transactional (was wrongly defaulting to promotional)
         ONE_TIME = promotional, EVENT_TRIGGERED = transactional (as per MoEngage convention)
         """
-        delivery_type = campaign.get("delivery_type", "")
+        delivery_type = campaign.get("campaign_delivery_type") or campaign.get("delivery_type", "")
 
         if delivery_type == "ONE_TIME":
             return "promotional"
@@ -782,6 +784,10 @@ class DataPuller:
             "AE_PUSH_TXN": [],
             "AE_EMAIL_PROMO": [],
             "AE_EMAIL_TXN": [],
+            "US_PUSH_PROMO": [],
+            "US_PUSH_TXN": [],
+            "US_EMAIL_PROMO": [],
+            "US_EMAIL_TXN": [],
             "UNCATEGORIZED": [],
         }
 

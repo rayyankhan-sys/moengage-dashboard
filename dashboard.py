@@ -511,8 +511,8 @@ def page_dashboard():
     # TAB 1: METRICS
     # ==================================================================
     with tab1:
-        if not segment_metrics:
-            st.info("No data for the selected period. Use **Pull Data** above to fetch metrics.")
+        if not segment_metrics and not campaign_metrics:
+            st.info("No data for the selected period. Use **Pull Data** or **Pull Campaigns** above to fetch metrics.")
         else:
             # --- UK SECTION ---
             st.subheader("°¬°§ United Kingdom")
@@ -524,11 +524,6 @@ def page_dashboard():
             st.subheader("°¦°ª United Arab Emirates")
             _render_country_metrics("AE", seg, campaign_metrics)
 
-            st.markdown("---")
-
-            # --- US SECTION ---
-            st.subheader("\U0001f1fa\U0001f1f8 United States")
-            _render_country_metrics("US", seg, campaign_metrics)
 
     # ==================================================================
     # TAB 2: COMPARISON

@@ -524,6 +524,12 @@ def page_dashboard():
             st.subheader("°¦°ª United Arab Emirates")
             _render_country_metrics("AE", seg, campaign_metrics)
 
+            st.markdown("---")
+
+            # --- US SECTION ---
+            st.subheader("\U0001f1fa\U0001f1f8 United States")
+            _render_country_metrics("US", seg, campaign_metrics)
+
     # ==================================================================
     # TAB 2: COMPARISON
     # ==================================================================

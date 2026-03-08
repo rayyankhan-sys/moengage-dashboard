@@ -36,6 +36,7 @@ STATS_API_BATCH_SIZE = 10  # max campaign IDs per batch request
 COUNTRIES = {
     "GB": "UK",
     "AE": "UAE",
+    "US": "US",
 }
 COUNTRY_CODES = list(COUNTRIES.keys())
 
@@ -101,6 +102,10 @@ CAMPAIGN_CATEGORIES = [
     "AE_PUSH_TXN",
     "AE_EMAIL_PROMO",
     "AE_EMAIL_TXN",
+    "US_PUSH_PROMO",
+    "US_PUSH_TXN",
+    "US_EMAIL_PROMO",
+    "US_EMAIL_TXN",
 ]
 
 # ============================================================================

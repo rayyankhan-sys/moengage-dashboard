@@ -722,6 +722,8 @@ class DataPuller:
                     return "GB"
                 if "UAE" in tag_upper or "AE" in tag_upper:
                     return "AE"
+                if tag_upper == "US":
+                    return "US"
 
         # Fallback: check description
         description = campaign.get("description", "").lower()
@@ -730,6 +732,8 @@ class DataPuller:
                 return "GB"
             elif "uae" in description or "ae" in description:
                 return "AE"
+            elif "us " in description or description.startswith("us"):
+                return "US"
 
         return None
 
@@ -797,16 +801,25 @@ class DataPuller:
             campaign_type = self._detect_campaign_type(campaign)
 
             if country and channel and campaign_type:
-                category_key = f"{country}_{channel.upper()}_{campaign_type.upper()}"
+                country_map = {"GB": "UK", "AE": "AE", "US": "US"}
+                mapped_country = country_map.get(country, country)
+                type_abbrev = {"promotional": "PROMO", "transactional": "TXN"}.get(campaign_type, campaign_type.upper())
+                category_key = f"{mapped_country}_{channel.upper()}_{type_abbrev}"
                 if category_key in category_buckets:
                     category_buckets[category_key].append(campaign)
                     logger.debug(
-                        f"Categorized campaign {campaign.get('name')} -> {category_key}"
+                        f"Categorized campaign {campaign.get('campaign_name', '')} -> {category_key}"
+                    )
+                else:
+                    category_buckets["UNCATEGORIZED"].append(campaign)
+                    logger.warning(
+                        f"Constructed key {category_key} not in buckets for campaign "
+                        f"{campaign.get('campaign_name', '')}. Storing as UNCATEGORIZED."
                     )
             else:
                 category_buckets["UNCATEGORIZED"].append(campaign)
                 logger.warning(
-                    f"Could not categorize campaign {campaign.get('name')} "
+                    f"Could not categorize campaign {campaign.get('campaign_name', '')} "
                     f"(country={country}, channel={channel}, type={campaign_type}). "
                     f"Storing as UNCATEGORIZED."
                 )
@@ -825,7 +838,7 @@ class DataPuller:
         Returns: stats dict by campaign_id
         """
         campaign_ids = [
-            campaign.get("id") or campaign.get("campaign_id")
+            campaign.get("campaign_id") or campaign.get("id")
             for campaign in campaigns
         ]
 

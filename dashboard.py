@@ -394,12 +394,12 @@ def page_dashboard():
                 db = MoEngageDatabase()
                 stored = 0
                 for campaign in campaigns:
-                    campaign_id = campaign.get("id") or campaign.get("campaign_id")
-                    campaign_name = campaign.get("name")
+                    campaign_id = campaign.get("campaign_id") or campaign.get("id")
+                    campaign_name = campaign.get("campaign_name") or campaign.get("name")
                     country = puller._detect_country(campaign)
                     channel = puller._detect_channel(campaign)
                     campaign_type = puller._detect_campaign_type(campaign)
-                    created_date = campaign.get("created_date")
+                    created_date = campaign.get("campaign_start_time") or campaign.get("created_date")
                     stats = all_stats.get(campaign_id, {})
                     try:
                         db.upsert_campaign_metric(

@@ -114,6 +114,36 @@ class SegmentBuilder:
         return event_filter
 
     @staticmethod
+    def build_user_date_filter(
+        attribute_name: str,
+        operator: str,
+        date_value: str,
+    ) -> Dict:
+        """
+        Build a user_attributes filter for date comparisons.
+
+        Args:
+            attribute_name: MoEngage user attribute (e.g. "moe_first_visit", "created_time")
+            operator: "before", "after", "on", "between"
+            date_value: ISO date string YYYY-MM-DD (appended with T23:59:59.999Z for "before")
+        """
+        if operator == "before":
+            val = f"{date_value}T23:59:59.999Z"
+        elif operator == "after":
+            val = f"{date_value}T00:00:00.000Z"
+        else:
+            val = f"{date_value}T00:00:00.000Z"
+
+        return {
+            "filter_type": "user_attributes",
+            "name": attribute_name,
+            "data_type": "date",
+            "operator": operator,
+            "value": val,
+            "negate": False,
+        }
+
+    @staticmethod
     def build_segment_payload(
         name: str,
         description: str,

@@ -108,17 +108,29 @@ def auto_fetch_segments(cc, start_iso, end_iso, pfx, progress):
     api = MoEngageAPIClient()
     sb = SegmentBuilder()
     tr_b = {"type": "between", "start": start_iso, "end": end_iso}
-    tr_60 = {"type": "relative", "days": 60}
+
+    # Compute absolute 60-day window anchored to the selected end_date
+    # e.g. end_date=2026-02-08 -> active window = 2025-12-10 to 2026-02-08
+    end_dt = datetime.strptime(end_iso, "%Y-%m-%d")
+    active_start = (end_dt - timedelta(days=60)).strftime("%Y-%m-%d")
+    tr_60_abs = {"type": "between", "start": active_start, "end": end_iso}
+
     ts = int(time.time())
     cn = COUNTRIES[cc]
 
     # Define all 9 segment payloads for this country
     defs = [
-        ("TOTAL_USERS", [sb.build_country_filter(cc)]),
+        ("TOTAL_USERS", [
+            sb.build_country_filter(cc),
+            # Filter by user creation date <= end_date so historical reports
+            # don't count users who joined after the report period
+            sb.build_user_date_filter("moe_first_visit", "before", end_iso),
+        ]),
         ("ACTIVE_USERS_60D", [
             sb.build_country_filter(cc),
+            # Absolute 60-day window anchored to end_date, NOT relative to today
             sb.build_event_filter(EVENT_NAMES["ORDER"], "atleast", 1,
-                                  tr_60, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
+                                  tr_60_abs, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
         ]),
         ("TRANSACTED_USERS_PERIOD", [
             sb.build_country_filter(cc),
@@ -136,14 +148,16 @@ def auto_fetch_segments(cc, start_iso, end_iso, pfx, progress):
         ("ACTIVE_PUSH_PERIOD", [
             sb.build_country_filter(cc),
             sb.build_push_received_filters(tr_b),
+            # Absolute 60-day window anchored to end_date
             sb.build_event_filter(EVENT_NAMES["ORDER"], "atleast", 1,
-                                  tr_60, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
+                                  tr_60_abs, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
         ]),
         ("ACTIVE_EMAIL_PERIOD", [
             sb.build_country_filter(cc),
             sb.build_event_filter(EVENT_NAMES["MOE_EMAIL_SENT"], "atleast", 1, tr_b),
+            # Absolute 60-day window anchored to end_date
             sb.build_event_filter(EVENT_NAMES["ORDER"], "atleast", 1,
-                                  tr_60, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
+                                  tr_60_abs, EVENT_NAMES["ORDER_SUB_EVENT_COMPLETED"]),
         ]),
         ("UNSUBSCRIBED_PUSH_PERIOD", [
             sb.build_country_filter(cc),
